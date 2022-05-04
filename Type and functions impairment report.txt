@@ -90,6 +90,30 @@ create or replace TYPE "PD_CALCULATION_TABLE" AS
 
 
 
+--------------------
+
+
+create or replace TYPE "IMPAIRMENT_CALCULATION" AS OBJECT (
+   LOAN_GROUP_ID NUMBER(38),
+   LOAN_GROUP_NAME VARCHAR2(1000),
+   AVGOF_FROM_1_30_DPD_RATE NUMBER(38, 2),
+   AVGOF_FROM_31_60_DPD_RATE NUMBER(38, 2),
+   AVGOF_FROM_61_90_DPD_RATE NUMBER(38, 2),
+   AVGOF_MORE_THAN_90_DPD_RATE NUMBER(38, 2),
+   TOTAL_AVGOF_DPD_RATE NUMBER(38, 2),
+   LGD_OFFICE_RATE NUMBER(38, 10),
+   EAD_NET_OUTSTANDING_LAON NUMBER(38, 2),
+   IMPAIRMENT NUMBER(38, 2)
+   
+);
+
+
+------------------------
+
+
+create or replace TYPE "IMPAIRMENT_CALCULATION_TABLE" AS
+    TABLE OF IMPAIRMENT_CALCULATION;
+
 
 
 
@@ -1232,15 +1256,15 @@ BEGIN
         m_loan;
 
     IF ( currentdate <= impairment_till_date ) THEN
-        SELECT
+        SELECT 
             pd_calculation("PERIOD", "TOTAL_LOAN_PORTFOLIO", "FROM_1_30_DPD", "FROM_31_60_DPD", "FROM_61_90_DPD",
-                           "MORE_TAHN_90_DPD", "OFFICE_NAME", "GROUP_NAME", "PERIOD_2", "FROM_1_30_DPD_RATE",
-                           "FROM_31_60_DPD_RATE", "FROM_61_90_DPD_RATE", "MORE_THAN_90_DPD")
+                           "MORE_TAHN_90_DPD", "OFFICE_NAME", "GROUP_NAME", "GROUP_ID", "PERIOD_2", "FROM_1_30_DPD_RATE",
+                           "FROM_31_60_DPD_RATE", "FROM_61_90_DPD_RATE", "MORE_THAN_90_DPD_RATE")
         BULK COLLECT
         INTO return_value
         FROM
             (
-                SELECT
+                SELECT 
                     *
                 FROM
                     (
@@ -1253,6 +1277,7 @@ BEGIN
                             mcpd.dpdmorethan90        more_tahn_90_dpd,
                             mo.name                   office_name,
                             mcg.group_name            group_name,
+                            MCG.ID GROUP_ID,
                             mcpd.period_date          period_2,
                             CASE
                                 WHEN ( ROWNUM > 1 ) THEN
@@ -1264,6 +1289,7 @@ BEGIN
                                         WHERE
                                                 period_date = last_day(add_months(mcpd.period_date, - 1))
                                             AND collectivegroup_id = mcpd.collectivegroup_id
+                                            AND officeid = officeid
                                     ),
                             --mcpd.total_loan_portfolio, 
                                      mcpd.dpd1to30)
@@ -1278,6 +1304,7 @@ BEGIN
                                         WHERE
                                                 period_date = last_day(add_months(mcpd.period_date, - 1))
                                             AND collectivegroup_id = mcpd.collectivegroup_id
+                                            AND officeid = officeid
                                     ), mcpd.dpd30to60)
                             END                       from_31_60_dpd_rate,
                             CASE
@@ -1290,6 +1317,7 @@ BEGIN
                                         WHERE
                                                 period_date = last_day(add_months(mcpd.period_date, - 1))
                                             AND collectivegroup_id = mcpd.collectivegroup_id
+                                            AND officeid = officeid
                                     ), mcpd.dpd60to90)
                             END                       from_61_90_dpd_rate,
                             CASE
@@ -1302,14 +1330,16 @@ BEGIN
                                         WHERE
                                                 period_date = last_day(add_months(mcpd.period_date, - 1))
                                             AND collectivegroup_id = mcpd.collectivegroup_id
+                                            AND officeid = officeid
                                     ), mcpd.dpdmorethan90)
-                            END                       more_than_90_dpd
+                            END                       more_than_90_dpd_RATE
                         FROM
                                  m_collectivepd mcpd
                             INNER JOIN m_office          mo ON mo.id = mcpd.officeid
                             INNER JOIN m_collectivegroup mcg ON mcg.id = mcpd.collectivegroup_id
                         WHERE
                             mcpd.collectivegroup_id = collectivegroupid
+                            AND mo.id = officeid
                         UNION
                         SELECT
                             ( to_date(currentdate) ) AS period,
@@ -1355,6 +1385,7 @@ BEGIN
                             ), 0)                    AS more_tahn_90_dpd,
                             office_name,
                             group_name,
+                            GROUP_ID,
                             ( to_date(currentdate) ) AS period_2,
                             calculating_dpd(nvl((
                                 SELECT
@@ -1364,6 +1395,7 @@ BEGIN
                                 WHERE
                                         period_date = last_day(add_months(currentdate, - 1))
                                     AND collectivegroup_id = collectivegroupid
+                                    AND officeid = officeid
                             ), 0), nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD1' THEN
@@ -1380,6 +1412,7 @@ BEGIN
                                 WHERE
                                         period_date = last_day(add_months(currentdate, - 1))
                                     AND collectivegroup_id = collectivegroupid
+                                    AND officeid = officeid
                             ), 0), nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD2' THEN
@@ -1396,6 +1429,7 @@ BEGIN
                                 WHERE
                                         period_date = last_day(add_months(currentdate, - 1))
                                     AND collectivegroup_id = collectivegroupid
+                                    AND officeid = officeid
                             ), 0), nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD3' THEN
@@ -1412,6 +1446,7 @@ BEGIN
                                 WHERE
                                         period_date = last_day(add_months(currentdate, - 1))
                                     AND collectivegroup_id = collectivegroupid
+                                    AND officeid = officeid
                             ), 0), nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD4' THEN
@@ -1419,7 +1454,7 @@ BEGIN
                                     ELSE
                                         0
                                 END
-                            ), 0))                   more_than_90_dpd
+                            ), 0))                   more_than_90_dpd_RATE
                         FROM
                             (
                                 SELECT
@@ -1437,7 +1472,8 @@ BEGIN
                                     END                                         AS pd,
                                     vlc.fair_value - nvl(vnss.principalpaid, 0) AS oustanding,
                                     mo.name                                     office_name,
-                                    mcg.group_name                              group_name
+                                    mcg.group_name,
+                                    MCG.ID GROUP_ID
                                 FROM
                                          v_new_schedule vns
                                     JOIN (
@@ -1488,6 +1524,7 @@ BEGIN
                             ( to_date(currentdate) ),
                             office_name,
                             group_name,
+                            group_id,
                             ( to_date(currentdate) )
                     )
                 WHERE
@@ -1499,8 +1536,8 @@ BEGIN
     ELSE
         SELECT
             pd_calculation("PERIOD", "TOTAL_LOAN_PORTFOLIO", "FROM_1_30_DPD", "FROM_31_60_DPD", "FROM_61_90_DPD",
-                           "MORE_TAHN_90_DPD", "OFFICE_NAME", "GROUP_NAME", "PERIOD_2", "FROM_1_30_DPD_RATE",
-                           "FROM_31_60_DPD_RATE", "FROM_61_90_DPD_RATE", "MORE_THAN_90_DPD")
+                           "MORE_TAHN_90_DPD", "OFFICE_NAME", "GROUP_NAME",  "GROUP_ID", "PERIOD_2", "FROM_1_30_DPD_RATE",
+                           "FROM_31_60_DPD_RATE", "FROM_61_90_DPD_RATE", "MORE_THAN_90_DPD_RATE")
         BULK COLLECT
         INTO return_value
         FROM
@@ -1518,11 +1555,12 @@ BEGIN
                             NULL                                            more_tahn_90_dpd,
                             '***WARNING MESSAGE***'                         office_name,
                             'PLEASE SELECT DATE BEFORE OR IN CURRENCT TILL' group_name,
+                            NULL                                            GROUP_ID,
                             NULL                                            period_2,
                             NULL                                            from_1_30_dpd_rate,
                             NULL                                            from_31_60_dpd_rate,
                             NULL                                            from_61_90_dpd_rate,
-                            NULL                                            more_than_90_dpd
+                            NULL                                            more_than_90_dpd_RATE
                         FROM
                             dual
                     )
@@ -1533,5 +1571,453 @@ BEGIN
     RETURN return_value;
 END;
 
+------------------------------------
+create or replace FUNCTION CALCULATE_TOTAL_AVGOF_DPD_RATE (
+AVG1 IN NUMBER,
+AVG2 IN NUMBER,
+AVG3 IN NUMBER,
+AVG4 IN NUMBER,
+THEGROUPLOANID IN NUMBER
+) RETURN NUMBER IS RESULTTOTALAVG NUMBER(38, 2) := 0;
+PAVG1 NUMBER(38, 5) := AVG1; PAVG2 NUMBER(38, 5) := AVG2; 
+PAVG3 NUMBER(38, 5) := AVG3; PAVG4 NUMBER(38, 5) := AVG4;
+BEGIN
+    IF THEGROUPLOANID = 2 THEN PAVG1 := 1;
+    ELSIF THEGROUPLOANID = 3 THEN PAVG1 := 1; PAVG2 := 1;
+    ELSIF THEGROUPLOANID = 4 OR THEGROUPLOANID = 5 THEN PAVG1 := 1; PAVG2 := 1; PAVG3 := 1;
+    END IF;
+    SELECT 
+    PAVG1 * PAVG2 * PAVG3 * PAVG4 
+    INTO  RESULTTOTALAVG FROM DUAL;
+    RETURN RESULTTOTALAVG;
 
+END;
+
+-------------------------------------------
+
+create or replace FUNCTION "IMPAIRMENT_CALCULATION_REPORT" (
+PLOANACCOUNT IN VARCHAR2,
+PCURRENCTDATE IN DATE,
+PISAIR IN NUMBER,
+PTHEGROUPLOANID IN NUMBER
+) RETURN IMPAIRMENT_CALCULATION_TABLE IS
+RETURN_VALUE IMPAIRMENT_CALCULATION_TABLE;
+INDEX_COUNTER NUMBER(38, 0) := 0;
+BEGIN
+--
+--LOOP
+--    INDEX_COUNTER := INDEX_COUNTER + 1;
+--    IF INDEX_COUNTER > 8 THEN EXIT;
+--    END IF;
+--    dbms_output.put_line( 'Inside loop: ' || INDEX_COUNTER )  ;
+    SELECT 
+        IMPAIRMENT_CALCULATION(
+            "LOAN_GROUP_ID", "LOAN_GROUP_NAME",
+            "AVGOF_FROM_1_30_DPD_RATE" , "AVGOF_FROM_31_60_DPD_RATE",
+            "AVGOF_FROM_61_90_DPD_RATE", "AVGOF_MORE_THAN_90_DPD_RATE",
+            "TOTAL_AVGOF_DPD_RATE", "LGD_OFFICE_RATE",
+            "EAD_NET_OUTSTANDING_LAON", "IMPAIRMENT"
+
+        ) bulk collect
+        INTO RETURN_VALUE
+        FROM(
+
+        
+        
+        select 
+        null LOAN_GROUP_ID,
+        null LOAN_GROUP_NAME,
+        avg(FROM_1_30_DPD_RATE) AVGOF_FROM_1_30_DPD_RATE ,
+        avg(FROM_31_60_DPD_RATE) AVGOF_FROM_31_60_DPD_RATE ,
+        AVG(FROM_61_90_DPD_RATE) AVGOF_FROM_61_90_DPD_RATE,
+        AVG(MORE_THAN_90_DPD_RATE) AVGOF_MORE_THAN_90_DPD_RATE,
+        CALCULATE_TOTAL_AVGOF_DPD_RATE(
+            avg(FROM_1_30_DPD_RATE),
+            avg(FROM_31_60_DPD_RATE),
+            AVG(FROM_61_90_DPD_RATE),
+            AVG(MORE_THAN_90_DPD_RATE),
+            PTHEGROUPLOANID
+            )  TOTAL_AVGOF_DPD_RATE,
+        get_lgd_rate(mlgd.officeid, mlgd.currency_code) LGD_OFFICE_RATE,
+        vcifrs.netprincipal_oustanding EAD_NET_OUTSTANDING_LAON,
+        CALCULATE_TOTAL_AVGOF_DPD_RATE(
+        avg(FROM_1_30_DPD_RATE),
+        avg(FROM_31_60_DPD_RATE),
+        AVG(FROM_61_90_DPD_RATE),
+        AVG(MORE_THAN_90_DPD_RATE),
+        PTHEGROUPLOANID
+        ) * 
+        get_lgd_rate(mlgd.officeid, mlgd.currency_code)
+          * 
+          CASE
+          WHEN PISAIR = 0 THEN vcifrs.netprincipal_oustanding
+          WHEN PISAIR = 1 THEN GET_AIR(ML.ID, PCURRENCTDATE, PTHEGROUPLOANID)
+          END IMPAIRMENT
+        from M_LOAN ML
+        
+        INNER JOIN M_LOAN_LGD MLGD ON MLGD.LOANACCOUNT = ml.account_no
+        INNER JOIN v_loan_cifrs VCIFRS ON vcifrs.loan_account = ml.account_no
+        INNER JOIN m_collectivegroup MCG ON MCG.ID = ml.collectivegroup_id
+        INNER JOIN
+        table(pd_calculation_report(
+        PCURRENCTDATE,
+        ML.COLLECTIVEGROUP_ID,
+        MLGD.OFFICEID
+        )) TABLE_PD ON TABLE_PD.GROUP_ID = ml.collectivegroup_id
+        WHERE ml.account_no = PLOANACCOUNT
+        --AND mlgd.officeid = POFFICEID 
+        group by GET_AIR(ML.ID, PCURRENCTDATE, PTHEGROUPLOANID), get_lgd_rate(mlgd.officeid, mlgd.currency_code), vcifrs.netprincipal_oustanding
+);
+
+--RETURN RETURN_VALUE;
+--END LOOP;
+RETURN RETURN_VALUE;
+END;
+
+----------------------------------------------------------
+
+create or replace FUNCTION IMPAIRMENT_CALCULATION_FINALIZE_RESULT_REPORT(
+PLOANACCOUNT IN VARCHAR2,
+PCURRENCTDATE IN DATE,
+PISAIR IN NUMBER
+) RETURN IMPAIRMENT_CALCULATION_TABLE IS
+RETURN_VALUE IMPAIRMENT_CALCULATION_TABLE;
+ISLATE NUMBER(38, 0) := 0;
+LATESINCE DATE := PCURRENCTDATE;
+LOANID NUMBER := 0;
+BEGIN
+SELECT ID INTO LOANID FROM M_LOAN WHERE ACCOUNT_NO = PLOANACCOUNT;
+SELECT COUNT(*) INTO ISLATE  FROM m_loan_arrears_aging MLA
+INNER JOIN M_LOAN ML ON ML.ID = MLA.LOAN_ID
+WHERE ML.ACCOUNT_NO = PLOANACCOUNT;
+
+IF ISLATE > 0 THEN
+SELECT overdue_since_date_derived INTO LATESINCE  FROM m_loan_arrears_aging MLA
+INNER JOIN M_LOAN ML ON ML.ID = MLA.LOAN_ID
+WHERE ML.ACCOUNT_NO = PLOANACCOUNT;
+END IF;
+
+SELECT 
+    IMPAIRMENT_CALCULATION(
+            "LOAN_GROUP_ID", "LOAN_GROUP_NAME",
+            "AVGOF_FROM_1_30_DPD_RATE" , "AVGOF_FROM_31_60_DPD_RATE",
+            "AVGOF_FROM_61_90_DPD_RATE", "AVGOF_MORE_THAN_90_DPD_RATE",
+            "TOTAL_AVGOF_DPD_RATE", "LGD_OFFICE_RATE",
+            "EAD_NET_OUTSTANDING_LAON", "IMPAIRMENT"
+
+        ) bulk collect
+        INTO RETURN_VALUE
+        FROM(
+
+            SELECT 
+            1 LOAN_GROUP_ID,
+            'CURRENT' LOAN_GROUP_NAME,
+            AVGOF_FROM_1_30_DPD_RATE AVGOF_FROM_1_30_DPD_RATE,
+            AVGOF_FROM_31_60_DPD_RATE AVGOF_FROM_31_60_DPD_RATE,
+            AVGOF_FROM_61_90_DPD_RATE AVGOF_FROM_61_90_DPD_RATE,
+            AVGOF_MORE_THAN_90_DPD_RATE AVGOF_MORE_THAN_90_DPD_RATE,
+            TOTAL_AVGOF_DPD_RATE TOTAL_AVGOF_DPD_RATE,
+            LGD_OFFICE_RATE LGD_OFFICE_RATE,
+            CASE
+            WHEN ISLATE = 0 THEN
+                CASE 
+                WHEN PISAIR = 0 THEN EAD_NET_OUTSTANDING_LAON 
+                WHEN PISAIR = 1 THEN GET_AIR(LOANID, PCURRENCTDATE, 1)
+                END
+            ELSE NULL
+            END EAD_NET_OUTSTANDING_LAON,
+            CASE
+            WHEN ISLATE = 0 THEN
+            IMPAIRMENT 
+            ELSE NULL
+            END IMPAIRMENT
+            FROM TABLE(IMPAIRMENT_CALCULATION_REPORT(
+            PLOANACCOUNT,
+            PCURRENCTDATE,
+            PISAIR,
+            1
+            ))
+--1----------------  
+-------------------
+            union
+            SELECT 
+            2 LOAN_GROUP_ID,
+            '1 - 30 DPD' LOAN_GROUP_NAME,
+            null AVGOF_FROM_1_30_DPD_RATE,
+            AVGOF_FROM_31_60_DPD_RATE AVGOF_FROM_31_60_DPD_RATE,
+            AVGOF_FROM_61_90_DPD_RATE AVGOF_FROM_61_90_DPD_RATE,
+            AVGOF_MORE_THAN_90_DPD_RATE AVGOF_MORE_THAN_90_DPD_RATE,
+            TOTAL_AVGOF_DPD_RATE TOTAL_AVGOF_DPD_RATE,
+            LGD_OFFICE_RATE LGD_OFFICE_RATE,
+            CASE
+            WHEN ISLATE > 0 THEN
+                CASE
+                    WHEN TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE) >= 1 
+                    AND TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE)<= 30
+                    THEN 
+                        CASE
+                        WHEN PISAIR = 0 THEN EAD_NET_OUTSTANDING_LAON
+                        WHEN PISAIR = 1 THEN GET_AIR(LOANID, PCURRENCTDATE, 2)
+                        END
+                    ELSE NULL END
+            END EAD_NET_OUTSTANDING_LAON,
+            CASE
+            WHEN ISLATE > 0 THEN
+                CASE
+                    WHEN TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE) >= 1 
+                    AND TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE)<= 30
+                    THEN IMPAIRMENT 
+                    ELSE NULL END
+             END IMPAIRMENT
+            FROM TABLE(IMPAIRMENT_CALCULATION_REPORT(
+            PLOANACCOUNT,
+            PCURRENCTDATE,
+            PISAIR,
+            2
+            ))
+--2---------------------
+------------------------
+            union
+            SELECT 
+            3 LOAN_GROUP_ID,
+            '31 - 60 DPD' LOAN_GROUP_NAME,
+            null AVGOF_FROM_1_30_DPD_RATE,
+            null AVGOF_FROM_31_60_DPD_RATE,
+            AVGOF_FROM_61_90_DPD_RATE AVGOF_FROM_61_90_DPD_RATE,
+            AVGOF_MORE_THAN_90_DPD_RATE AVGOF_MORE_THAN_90_DPD_RATE,
+            TOTAL_AVGOF_DPD_RATE TOTAL_AVGOF_DPD_RATE,
+            LGD_OFFICE_RATE LGD_OFFICE_RATE,
+            CASE
+            WHEN ISLATE > 0 THEN
+                CASE
+                    WHEN TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE) >= 31 
+                    AND TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE)<= 60
+                    THEN 
+                        CASE
+                            WHEN PISAIR = 0 THEN EAD_NET_OUTSTANDING_LAON
+                            WHEN PISAIR = 1 THEN GET_AIR(LOANID, PCURRENCTDATE, 3)
+                            END
+                    ELSE NULL END
+             END EAD_NET_OUTSTANDING_LAON,
+            CASE
+            WHEN ISLATE > 0 THEN
+                CASE
+                    WHEN TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE) >= 31 
+                    AND TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE)<= 60
+                    THEN IMPAIRMENT 
+                    ELSE NULL END
+             END IMPAIRMENT
+            FROM TABLE(IMPAIRMENT_CALCULATION_REPORT(
+            PLOANACCOUNT,
+            PCURRENCTDATE,
+            PISAIR,
+            3
+            ))
+--3--------------------
+-----------------------
+            union
+            SELECT 
+            4 LOAN_GROUP_ID,
+            '61 - 90 DPD' LOAN_GROUP_NAME,
+            null AVGOF_FROM_1_30_DPD_RATE,
+            null AVGOF_FROM_31_60_DPD_RATE,
+            null AVGOF_FROM_61_90_DPD_RATE,
+            AVGOF_MORE_THAN_90_DPD_RATE AVGOF_MORE_THAN_90_DPD_RATE,
+            TOTAL_AVGOF_DPD_RATE TOTAL_AVGOF_DPD_RATE,
+            LGD_OFFICE_RATE LGD_OFFICE_RATE,
+            CASE
+            WHEN ISLATE > 0 THEN
+                CASE
+                    WHEN TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE) >= 61 
+                    AND TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE)<= 90
+                    THEN
+                        CASE
+                        WHEN PISAIR = 0 THEN EAD_NET_OUTSTANDING_LAON
+                        WHEN PISAIR = 1 THEN GET_AIR(LOANID, PCURRENCTDATE, 4)
+                        END
+                    ELSE NULL END
+             END EAD_NET_OUTSTANDING_LAON,
+            CASE
+            WHEN ISLATE > 0 THEN
+                CASE
+                    WHEN TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE) >= 61 
+                    AND TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE)<= 90
+                    THEN IMPAIRMENT 
+                    ELSE NULL END
+             END IMPAIRMENT
+            FROM TABLE(IMPAIRMENT_CALCULATION_REPORT(
+            PLOANACCOUNT,
+            PCURRENCTDATE,
+            PISAIR,
+            4
+            ))
+--4-----------------------
+--------------------------
+            union
+            SELECT 
+            5 LOAN_GROUP_ID,
+            'MORE THAN 90' LOAN_GROUP_NAME,
+            null AVGOF_FROM_1_30_DPD_RATE,
+            null AVGOF_FROM_31_60_DPD_RATE,
+            null AVGOF_FROM_61_90_DPD_RATE,
+            AVGOF_MORE_THAN_90_DPD_RATE AVGOF_MORE_THAN_90_DPD_RATE,
+            TOTAL_AVGOF_DPD_RATE TOTAL_AVGOF_DPD_RATE,
+            LGD_OFFICE_RATE LGD_OFFICE_RATE,
+             CASE
+            WHEN ISLATE > 0 THEN
+                CASE
+                    WHEN TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE) > 90 
+                    THEN 
+                        CASE
+                        WHEN PISAIR = 0 THEN EAD_NET_OUTSTANDING_LAON
+                        WHEN PISAIR = 1 THEN GET_AIR(LOANID, PCURRENCTDATE, 5)
+                        END
+                    ELSE NULL END
+             END EAD_NET_OUTSTANDING_LAON,
+            CASE
+            WHEN ISLATE > 0 THEN
+                CASE
+                    WHEN TO_DATE(PCURRENCTDATE) -  TO_DATE(LATESINCE) > 90 
+                    THEN IMPAIRMENT 
+                    ELSE NULL END
+             END IMPAIRMENT
+            FROM TABLE(IMPAIRMENT_CALCULATION_REPORT(
+            PLOANACCOUNT,
+            PCURRENCTDATE,
+            PISAIR,
+            5
+            ))
+        ) order by LOAN_GROUP_ID;
+RETURN RETURN_VALUE;
+END;
+
+---------------------------------------------
+
+
+create or replace FUNCTION GET_AIR(
+LOANID IN NUMBER,
+CURRENTDATE IN DATE,
+THEGROUPLOANID IN NUMBER
+) RETURN NUMBER IS RESULT_AIR NUMBER(38, 2) := 0;
+
+BEGIN
+
+    SELECT
+    CASE 
+    WHEN THEGROUPLOANID = 1 THEN totalloanportfolio 
+    WHEN THEGROUPLOANID = 2 THEN to30dpd
+    WHEN THEGROUPLOANID = 3 THEN to60dpd
+    WHEN THEGROUPLOANID = 4 THEN to90dpd
+    WHEN THEGROUPLOANID = 5 THEN morethan90dpd
+    END AIR INTO RESULT_AIR
+
+
+
+    FROM (
+             SELECT
+    last_day(to_date(  CURRENTDATE)) AS period,
+    nvl(SUM(
+        CASE
+            WHEN pd = 'PD0' THEN
+                nvl(outstanding, 0)
+            ELSE
+                0
+        END
+    ), 0) AS totalloanportfolio,
+    nvl(SUM(
+        CASE
+            WHEN pd = 'PD1' THEN
+                nvl(outstanding, 0)
+            ELSE
+                0
+        END
+    ), 0) AS to30dpd,
+    nvl(SUM(
+        CASE
+            WHEN pd = 'PD2' THEN
+                nvl(outstanding, 0)
+            ELSE
+                0
+        END
+    ), 0) AS to60dpd,
+    nvl(SUM(
+        CASE
+            WHEN pd = 'PD3' THEN
+                nvl(outstanding, 0)
+            ELSE
+                0
+        END
+    ), 0) AS to90dpd,
+    nvl(SUM(
+        CASE
+            WHEN pd = 'PD4' THEN
+                nvl(outstanding, 0)
+            ELSE
+                0
+        END
+    ), 0) AS morethan90dpd
+FROM
+    (
+        SELECT
+            CASE
+                WHEN to_date(  CURRENTDATE) - nvl(to_date(vnsss.due_date), to_date(  CURRENTDATE)) BETWEEN 1 AND 30 THEN
+                    'PD1'
+                WHEN to_date(  CURRENTDATE) - nvl(to_date(vnsss.due_date), to_date(  CURRENTDATE)) BETWEEN 31 AND 60 THEN
+                    'PD2'
+                WHEN to_date(  CURRENTDATE) - nvl(to_date(vnsss.due_date), to_date(  CURRENTDATE)) BETWEEN 61 AND 90 THEN
+                    'PD3'
+                WHEN to_date(  CURRENTDATE) - nvl(to_date(vnsss.due_date), to_date(  CURRENTDATE)) > 90          THEN
+                    'PD4'
+                WHEN to_date(  CURRENTDATE) - nvl(to_date(vnsss.due_date), to_date(  CURRENTDATE)) < 1            THEN
+                    'PD0'
+            END AS pd,
+            vns.accrued_interest AS outstanding
+        FROM
+            v_new_schedule                                                                                                           vns
+            JOIN (
+                SELECT
+                    id             AS id,
+                    loancifrs_id   AS loancifrs_id
+                FROM
+                    v_new_schedule
+                WHERE
+                    schedule_status <> 2
+                    AND nvl(accrued_interest, 0) > 0
+            ) vnss ON vnss.id = vns.id
+                      AND vnss.loancifrs_id = vns.loancifrs_id
+            JOIN m_loan                                                                                                                   ml ON ml.account_no = vns.loan_account
+            JOIN (
+                SELECT
+                    MIN(due_date) AS due_date,
+                    loancifrs_id AS loancifrs_id
+                FROM
+                    v_new_schedule
+                WHERE
+                    schedule_status <> 2
+                GROUP BY
+                    loancifrs_id
+            ) vnsss ON vns.loancifrs_id = vnsss.loancifrs_id
+        WHERE
+            ml.loan_status_id = 300
+            AND vns.loancifrs_id =   LOANID
+    )
+        );
+
+        RETURN RESULT_AIR;
+
+END;
+
+----------------------------
+
+create or replace FUNCTION GET_LGD_RATE (
+POFFICEID IN NUMBER,
+PCURRENCYCODE IN VARCHAR2
+) RETURN NUMBER IS RESULTLGDRATE NUMBER(38, 10) := 0;
+
+BEGIN
+    SELECT LGDRATE INTO  RESULTLGDRATE FROM M_LGD_OFFICE 
+    WHERE OFFICEID =  POFFICEID 
+    AND CURRENCY_CODE = PCURRENCYCODE;
+    RETURN RESULTLGDRATE;
+END;
 
