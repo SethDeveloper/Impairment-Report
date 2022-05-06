@@ -217,9 +217,9 @@ END;
 -----------------------------------
 
 create or replace FUNCTION "LGD_CALCULATION_REPORT"(
-OFFICEID IN NUMBER,
-CURRENCY IN VARCHAR2,
-TILLDATE IN DATE
+POFFICEID IN NUMBER,
+PCURRENCY IN VARCHAR2,
+PTILLDATE IN DATE
 ) RETURN LGD_CALCULATION_TABLE IS
 RETURN_VALUE LGD_CALCULATION_TABLE;
 BEGIN
@@ -371,7 +371,7 @@ FROM
                     get_period_pd(ml.collectivegroup_id, 33) date_33,
                     get_period_pd(ml.collectivegroup_id, 34) date_34,
                     get_period_pd(ml.collectivegroup_id, 35) date_35,
-                    to_date(TILLDATE)                       date_36,
+                    to_date(PTILLDATE)                       date_36,
                     'Total Collections'                      total_collections
                 FROM
                          m_collectivepd mcpd
@@ -469,7 +469,7 @@ FROM
                     calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 33), mlgd.loanaccount)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           date_33,
                     calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 34), mlgd.loanaccount)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           date_34,
                     calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 35), mlgd.loanaccount)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           date_35,
-                    calculating_collection_in_period(TILLDATE, mlgd.loanaccount)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          date_36,
+                    calculating_collection_in_period(PTILLDATE, mlgd.loanaccount)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          date_36,
                     SUM(calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 1), mlgd.loanaccount) + calculating_collection_in_period(
                     get_period_pd(ml.collectivegroup_id, 2), mlgd.loanaccount) + calculating_collection_in_period(get_period_pd(ml.collectivegroup_id,
                     3), mlgd.loanaccount) + calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 4), mlgd.loanaccount) +
@@ -496,15 +496,15 @@ FROM
                     31), mlgd.loanaccount) + calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 32), mlgd.loanaccount) +
                     calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 33), mlgd.loanaccount) + calculating_collection_in_period(
                     get_period_pd(ml.collectivegroup_id, 34), mlgd.loanaccount) + calculating_collection_in_period(get_period_pd(ml.collectivegroup_id,
-                    35), mlgd.loanaccount) + calculating_collection_in_period(TILLDATE, mlgd.loanaccount)) total_collections
+                    35), mlgd.loanaccount) + calculating_collection_in_period(PTILLDATE, mlgd.loanaccount)) total_collections
                 FROM
                          m_loan ml
                     INNER JOIN m_loan_lgd        mlgd ON mlgd.loanid = ml.id
                     INNER JOIN m_collectivegroup mcg ON mcg.id = ml.collectivegroup_id
                     INNER JOIN v_loan_cifrs      vlc ON vlc.loan_account = ml.account_no
                 WHERE
-                        mlgd.officeid = OFFICEID
-                    AND mlgd.currency_code = CURRENCY
+                        mlgd.officeid = POFFICEID
+                    AND mlgd.currency_code = PCURRENCY
                 GROUP BY
                     mlgd.loanaccount,
                     mlgd.datedefault,
@@ -546,7 +546,7 @@ FROM
                     calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 33), mlgd.loanaccount),
                     calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 34), mlgd.loanaccount),
                     calculating_collection_in_period(get_period_pd(ml.collectivegroup_id, 35), mlgd.loanaccount),
-                    calculating_collection_in_period(TILLDATE, mlgd.loanaccount)
+                    calculating_collection_in_period(PTILLDATE, mlgd.loanaccount)
             )
     )
 ORDER BY
@@ -562,9 +562,9 @@ END;
 
 
 create or replace FUNCTION "LGD_CALCULATION_TYPE_2_REPORT"(
-OFFICEID IN NUMBER,
-CURRENCY IN VARCHAR2,
-TILLDATE IN DATE
+POFFICEID IN NUMBER,
+PCURRENCY IN VARCHAR2,
+PTILLDATE IN DATE
 ) RETURN LGD_CALCULATION_TABLE IS
 RETURN_VALUE LGD_CALCULATION_TABLE;
 BEGIN
@@ -713,7 +713,7 @@ SELECT DISTINCT
                     get_period_pd(ml.collectivegroup_id, 33) date_33,
                     get_period_pd(ml.collectivegroup_id, 34) date_34,
                     get_period_pd(ml.collectivegroup_id, 35) date_35,
-                    to_date(TILLDATE)                       date_36,
+                    to_date(PTILLDATE)                       date_36,
                     'Total Collections'                      total_collections
                 FROM
                          m_collectivepd mcpd
@@ -988,7 +988,7 @@ SELECT
                     vlc.irr_rate
                     ) DATE_35,
                      calculating_lgd(
-                    TO_DATE(TILLDATE),
+                    TO_DATE(PTILLDATE),
                     mlgd.datedefault,
                     mlgd.loanaccount,
                     vlc.irr_rate
@@ -1207,7 +1207,7 @@ SELECT
                     vlc.irr_rate
                    ) +
                      calculating_lgd(
-                    TO_DATE(TILLDATE),
+                    TO_DATE(PTILLDATE),
                     mlgd.datedefault,
                     mlgd.loanaccount,
                     vlc.irr_rate
@@ -1220,8 +1220,8 @@ SELECT
                     INNER JOIN m_collectivegroup mcg ON mcg.id = ml.collectivegroup_id
                     INNER JOIN v_loan_cifrs      vlc ON vlc.loan_account = ml.account_no
                 WHERE
-                        mlgd.officeid = OFFICEID
-                    AND mlgd.currency_code = CURRENCY group by mlgd.loanaccount, mlgd.datedefault, mcg.group_name, vlc.netprincipal_oustanding, vlc.irr_rate, 
+                        mlgd.officeid = POFFICEID
+                    AND mlgd.currency_code = PCURRENCY group by mlgd.loanaccount, mlgd.datedefault, mcg.group_name, vlc.netprincipal_oustanding, vlc.irr_rate, 
 calculating_lgd( get_period_pd(ml.collectivegroup_id, 1), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 2), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 3), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 4), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 5), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), 
 calculating_lgd( get_period_pd(ml.collectivegroup_id, 6), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 7), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 8), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 9), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 10), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), 
 calculating_lgd( get_period_pd(ml.collectivegroup_id, 11), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 12), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 13), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 14), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 15), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), 
@@ -1229,7 +1229,7 @@ calculating_lgd( get_period_pd(ml.collectivegroup_id, 16), mlgd.datedefault, mlg
 calculating_lgd( get_period_pd(ml.collectivegroup_id, 21), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 22), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 23), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 24), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 25), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), 
 calculating_lgd( get_period_pd(ml.collectivegroup_id, 26), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 27), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 28), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 29), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 30), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), 
 calculating_lgd( get_period_pd(ml.collectivegroup_id, 31), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 32), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 33), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 34), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), calculating_lgd( get_period_pd(ml.collectivegroup_id, 35), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), 
-calculating_lgd( TO_DATE(TILLDATE), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), 'TOTAL_COLLECTIONS'
+calculating_lgd( TO_DATE(PTILLDATE), mlgd.datedefault, mlgd.loanaccount, vlc.irr_rate ), 'TOTAL_COLLECTIONS'
 )     ) ORDER BY ORDERID        
     );
 
@@ -1243,9 +1243,9 @@ END;
 
 
 create or replace FUNCTION "PD_CALCULATION_REPORT" (
-    currentdate       IN DATE,
-    collectivegroupid IN NUMBER,
-    officeid          IN NUMBER
+    pcurrentdate       IN DATE,
+    pcollectivegroupid IN NUMBER,
+    pofficeid          IN NUMBER
 ) RETURN pd_calculation_table IS
     return_value         pd_calculation_table;
     impairment_till_date DATE;
@@ -1256,7 +1256,7 @@ BEGIN
     FROM
         m_loan;
 
-    IF ( currentdate <= impairment_till_date ) THEN
+    IF ( pcurrentdate <= impairment_till_date ) THEN
         SELECT 
             pd_calculation("PERIOD", "TOTAL_LOAN_PORTFOLIO", "FROM_1_30_DPD", "FROM_31_60_DPD", "FROM_61_90_DPD",
                            "MORE_TAHN_90_DPD", "OFFICE_NAME", "GROUP_NAME", "GROUP_ID", "PERIOD_2", "FROM_1_30_DPD_RATE",
@@ -1290,7 +1290,7 @@ BEGIN
                                         WHERE
                                                 period_date = last_day(add_months(mcpd.period_date, - 1))
                                             AND collectivegroup_id = mcpd.collectivegroup_id
-                                            AND officeid = officeid
+                                            AND officeid = pofficeid
                                     ),
                             --mcpd.total_loan_portfolio, 
                                      mcpd.dpd1to30)
@@ -1305,7 +1305,7 @@ BEGIN
                                         WHERE
                                                 period_date = last_day(add_months(mcpd.period_date, - 1))
                                             AND collectivegroup_id = mcpd.collectivegroup_id
-                                            AND officeid = officeid
+                                            AND officeid = pofficeid
                                     ), mcpd.dpd30to60)
                             END                       from_31_60_dpd_rate,
                             CASE
@@ -1318,7 +1318,7 @@ BEGIN
                                         WHERE
                                                 period_date = last_day(add_months(mcpd.period_date, - 1))
                                             AND collectivegroup_id = mcpd.collectivegroup_id
-                                            AND officeid = officeid
+                                            AND officeid = pofficeid
                                     ), mcpd.dpd60to90)
                             END                       from_61_90_dpd_rate,
                             CASE
@@ -1331,7 +1331,7 @@ BEGIN
                                         WHERE
                                                 period_date = last_day(add_months(mcpd.period_date, - 1))
                                             AND collectivegroup_id = mcpd.collectivegroup_id
-                                            AND officeid = officeid
+                                            AND officeid = pofficeid
                                     ), mcpd.dpdmorethan90)
                             END                       more_than_90_dpd_RATE
                         FROM
@@ -1339,11 +1339,11 @@ BEGIN
                             INNER JOIN m_office          mo ON mo.id = mcpd.officeid
                             INNER JOIN m_collectivegroup mcg ON mcg.id = mcpd.collectivegroup_id
                         WHERE
-                            mcpd.collectivegroup_id = collectivegroupid
-                            AND mo.id = officeid
+                            mcpd.collectivegroup_id = pcollectivegroupid
+                            AND mo.id = pofficeid
                         UNION
                         SELECT
-                            ( to_date(currentdate) ) AS period,
+                            ( to_date(pcurrentdate) ) AS period,
                             nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD0' THEN
@@ -1387,16 +1387,16 @@ BEGIN
                             office_name,
                             group_name,
                             GROUP_ID,
-                            ( to_date(currentdate) ) AS period_2,
+                            ( to_date(pcurrentdate) ) AS period_2,
                             calculating_dpd(nvl((
                                 SELECT
                                     total_loan_portfolio
                                 FROM
                                     m_collectivepd
                                 WHERE
-                                        period_date = last_day(add_months(currentdate, - 1))
-                                    AND collectivegroup_id = collectivegroupid
-                                    AND officeid = officeid
+                                        period_date = last_day(add_months(pcurrentdate, - 1))
+                                    AND collectivegroup_id = pcollectivegroupid
+                                    AND officeid = pofficeid
                             ), 0), nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD1' THEN
@@ -1411,9 +1411,9 @@ BEGIN
                                 FROM
                                     m_collectivepd
                                 WHERE
-                                        period_date = last_day(add_months(currentdate, - 1))
-                                    AND collectivegroup_id = collectivegroupid
-                                    AND officeid = officeid
+                                        period_date = last_day(add_months(pcurrentdate, - 1))
+                                    AND collectivegroup_id = pcollectivegroupid
+                                    AND officeid = pofficeid
                             ), 0), nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD2' THEN
@@ -1428,9 +1428,9 @@ BEGIN
                                 FROM
                                     m_collectivepd
                                 WHERE
-                                        period_date = last_day(add_months(currentdate, - 1))
-                                    AND collectivegroup_id = collectivegroupid
-                                    AND officeid = officeid
+                                        period_date = last_day(add_months(pcurrentdate, - 1))
+                                    AND collectivegroup_id = pcollectivegroupid
+                                    AND officeid = pofficeid
                             ), 0), nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD3' THEN
@@ -1445,9 +1445,9 @@ BEGIN
                                 FROM
                                     m_collectivepd
                                 WHERE
-                                        period_date = last_day(add_months(currentdate, - 1))
-                                    AND collectivegroup_id = collectivegroupid
-                                    AND officeid = officeid
+                                        period_date = last_day(add_months(pcurrentdate, - 1))
+                                    AND collectivegroup_id = pcollectivegroupid
+                                    AND officeid = pofficeid
                             ), 0), nvl(SUM(
                                 CASE
                                     WHEN pd = 'PD4' THEN
@@ -1460,13 +1460,13 @@ BEGIN
                             (
                                 SELECT
                                     CASE
-                                        WHEN nvl(vnsd.payment_date, last_day(currentdate)) - vns.due_date BETWEEN 1 AND 30  THEN
+                                        WHEN nvl(vnsd.payment_date, last_day(pcurrentdate)) - vns.due_date BETWEEN 1 AND 30  THEN
                                             'PD1'
-                                        WHEN nvl(vnsd.payment_date, last_day(currentdate)) - vns.due_date BETWEEN 31 AND 60 THEN
+                                        WHEN nvl(vnsd.payment_date, last_day(pcurrentdate)) - vns.due_date BETWEEN 31 AND 60 THEN
                                             'PD2'
-                                        WHEN nvl(vnsd.payment_date, last_day(currentdate)) - vns.due_date BETWEEN 61 AND 90 THEN
+                                        WHEN nvl(vnsd.payment_date, last_day(pcurrentdate)) - vns.due_date BETWEEN 61 AND 90 THEN
                                             'PD3'
-                                        WHEN nvl(vnsd.payment_date, last_day(currentdate)) - vns.due_date >= 91             THEN
+                                        WHEN nvl(vnsd.payment_date, last_day(pcurrentdate)) - vns.due_date >= 91             THEN
                                             'PD4'
                                         WHEN vnsd.payment_date - vns.due_date <= 0                                          THEN
                                             'PD0'
@@ -1492,7 +1492,7 @@ BEGIN
                                     JOIN m_loan            ml ON ml.account_no = vns.loan_account
                                     JOIN (
                                         SELECT
-                                            to_date(currentdate) AS payment_date,
+                                            to_date(pcurrentdate) AS payment_date,
                                             due_date,
                                             oustanding           AS oustanding,
                                             loancifrs_id
@@ -1509,7 +1509,7 @@ BEGIN
                                             v_new_schedule_detail
                                         WHERE
                                                 schedule_status = 2
-                                            AND payment_date <= last_day(currentdate)
+                                            AND payment_date <= last_day(pcurrentdate)
                                         GROUP BY
                                             loancifrs_id
                                     )                 vnss ON vnss.loancifrs_id = vlc.id
@@ -1517,16 +1517,16 @@ BEGIN
                                     JOIN m_office          mo ON mc.office_id = mo.id
                                     INNER JOIN m_collectivegroup mcg ON mcg.id = ml.collectivegroup_id
                                 WHERE
-                                        mo.id = officeid
+                                        mo.id = pofficeid
                                     AND ml.loan_status_id = 300
-                                    AND ml.collectivegroup_id = collectivegroupid
+                                    AND ml.collectivegroup_id = pcollectivegroupid
                             )
                         GROUP BY
-                            ( to_date(currentdate) ),
+                            ( to_date(pcurrentdate) ),
                             office_name,
                             group_name,
                             group_id,
-                            ( to_date(currentdate) )
+                            ( to_date(pcurrentdate) )
                     )
                 WHERE
                     ROWNUM <= 36
