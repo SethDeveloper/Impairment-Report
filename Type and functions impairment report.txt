@@ -169,7 +169,7 @@ IRRRATE IN NUMBER
 BEGIN
 IF (PERIODDATE - DEFUALTDATE > 0) THEN
 SELECT 
-    nvl(CALCULATING_COLLECTION_IN_PERIOD(PERIODDATE, LOANACCOUNT),0) * nvl((POWER((1+IRRRATE), -((PERIODDATE - DEFUALTDATE)/365))),0) INTO RESULTLGD 
+    nvl(CALCULATING_COLLECTION_IN_PERIOD(PERIODDATE, LOANACCOUNT),0) * nvl((POWER((1+(IRRRATE/100)), -((PERIODDATE - DEFUALTDATE)/365))),0) INTO RESULTLGD 
     FROM DUAL;
 END IF;
 RETURN RESULTLGD;
@@ -552,7 +552,7 @@ FROM
 ORDER BY
     orderid)
     );
-    
+
      RETURN return_value;
 END;
 
@@ -1591,7 +1591,6 @@ BEGIN
     PAVG1 * PAVG2 * PAVG3 * PAVG4 
     INTO  RESULTTOTALAVG FROM DUAL;
     RETURN RESULTTOTALAVG;
-
 END;
 
 -------------------------------------------
@@ -1623,29 +1622,29 @@ BEGIN
         INTO RETURN_VALUE
         FROM(
 
-        
-        
+
+
         select 
         null LOAN_GROUP_ID,
         null LOAN_GROUP_NAME,
-        avg(FROM_1_30_DPD_RATE) AVGOF_FROM_1_30_DPD_RATE ,
-        avg(FROM_31_60_DPD_RATE) AVGOF_FROM_31_60_DPD_RATE ,
-        AVG(FROM_61_90_DPD_RATE) AVGOF_FROM_61_90_DPD_RATE,
-        AVG(MORE_THAN_90_DPD_RATE) AVGOF_MORE_THAN_90_DPD_RATE,
+        avg(decode(FROM_1_30_DPD_RATE, 0, null, FROM_1_30_DPD_RATE)) AVGOF_FROM_1_30_DPD_RATE ,
+        avg(decode(FROM_31_60_DPD_RATE, 0, null, FROM_31_60_DPD_RATE)) AVGOF_FROM_31_60_DPD_RATE ,
+        AVG(decode(FROM_61_90_DPD_RATE, 0, null, FROM_61_90_DPD_RATE)) AVGOF_FROM_61_90_DPD_RATE,
+        AVG(decode(MORE_THAN_90_DPD_RATE, 0, null, MORE_THAN_90_DPD_RATE)) AVGOF_MORE_THAN_90_DPD_RATE,
         CALCULATE_TOTAL_AVGOF_DPD_RATE(
-            avg(FROM_1_30_DPD_RATE),
-            avg(FROM_31_60_DPD_RATE),
-            AVG(FROM_61_90_DPD_RATE),
-            AVG(MORE_THAN_90_DPD_RATE),
+            avg(decode(FROM_1_30_DPD_RATE, 0 ,null, FROM_1_30_DPD_RATE)),
+            avg(decode(FROM_31_60_DPD_RATE, 0, null, FROM_31_60_DPD_RATE)),
+            AVG(decode(FROM_61_90_DPD_RATE, 0, null, FROM_61_90_DPD_RATE)),
+            AVG(decode(MORE_THAN_90_DPD_RATE, 0, null, MORE_THAN_90_DPD_RATE)),
             PTHEGROUPLOANID
             )  TOTAL_AVGOF_DPD_RATE,
         get_lgd_rate(mlgd.officeid, mlgd.currency_code) LGD_OFFICE_RATE,
         vcifrs.netprincipal_oustanding EAD_NET_OUTSTANDING_LAON,
         CALCULATE_TOTAL_AVGOF_DPD_RATE(
-        avg(FROM_1_30_DPD_RATE),
-        avg(FROM_31_60_DPD_RATE),
-        AVG(FROM_61_90_DPD_RATE),
-        AVG(MORE_THAN_90_DPD_RATE),
+        avg(decode(FROM_1_30_DPD_RATE, 0, null, FROM_1_30_DPD_RATE)),
+        avg(decode(FROM_31_60_DPD_RATE, 0, null, FROM_31_60_DPD_RATE)),
+        AVG(decode(FROM_61_90_DPD_RATE, 0, null, FROM_61_90_DPD_RATE)),
+        AVG(decode(MORE_THAN_90_DPD_RATE, 0, null, MORE_THAN_90_DPD_RATE)),
         PTHEGROUPLOANID
         ) * 
         get_lgd_rate(mlgd.officeid, mlgd.currency_code)
@@ -1655,7 +1654,7 @@ BEGIN
           WHEN PISAIR = 1 THEN GET_AIR(ML.ID, PCURRENCTDATE, PTHEGROUPLOANID)
           END IMPAIRMENT
         from M_LOAN ML
-        
+
         INNER JOIN M_LOAN_LGD MLGD ON MLGD.LOANACCOUNT = ml.account_no
         INNER JOIN v_loan_cifrs VCIFRS ON vcifrs.loan_account = ml.account_no
         INNER JOIN m_collectivegroup MCG ON MCG.ID = ml.collectivegroup_id
@@ -2020,5 +2019,124 @@ BEGIN
     WHERE OFFICEID =  POFFICEID 
     AND CURRENCY_CODE = PCURRENCYCODE;
     RETURN RESULTLGDRATE;
+END;
+
+----------------------------
+
+create or replace FUNCTION "PD_CALCULATION_UNION_REPORT" (
+    pcurrentdate       IN DATE,
+    pcollectivegroupid IN NUMBER,
+    pofficeid          IN NUMBER
+) RETURN pd_calculation_table IS
+    return_value         pd_calculation_table;
+    impairment_till_date DATE;
+BEGIN
+    SELECT
+        MAX(impairment_till)
+    INTO impairment_till_date
+    FROM
+        m_loan;
+
+    IF ( pcurrentdate <= impairment_till_date ) THEN
+        SELECT 
+            pd_calculation("PERIOD", "TOTAL_LOAN_PORTFOLIO", "FROM_1_30_DPD", "FROM_31_60_DPD", "FROM_61_90_DPD",
+                           "MORE_TAHN_90_DPD", "OFFICE_NAME", "GROUP_NAME", "GROUP_ID", "PERIOD_2", "FROM_1_30_DPD_RATE",
+                           "FROM_31_60_DPD_RATE", "FROM_61_90_DPD_RATE", "MORE_THAN_90_DPD_RATE")
+        BULK COLLECT
+        INTO return_value
+        FROM
+            (
+                SELECT 
+                    *
+                FROM
+                    (
+                        select
+                        PERIOD PERIOD,
+                        TOTAL_LOAN_PORTFOLIO TOTAL_LOAN_PORTFOLIO,
+                        FROM_1_30_DPD FROM_1_30_DPD,
+                        FROM_31_60_DPD FROM_31_60_DPD,
+                        FROM_61_90_DPD FROM_61_90_DPD,
+                        MORE_TAHN_90_DPD MORE_TAHN_90_DPD,
+                        OFFICE_NAME OFFICE_NAME,
+                        GROUP_NAME GROUP_NAME,
+                        GROUP_ID GROUP_ID,
+                        PERIOD_2 PERIOD_2,
+                        FROM_1_30_DPD_RATE FROM_1_30_DPD_RATE,
+                        FROM_31_60_DPD_RATE FROM_31_60_DPD_RATE,
+                        FROM_61_90_DPD_RATE FROM_61_90_DPD_RATE,
+                        MORE_THAN_90_DPD_RATE MORE_THAN_90_DPD_RATE,
+                        1 orderid
+                        from
+                        table(pd_calculation_report(
+                            pcurrentdate,
+                            pcollectivegroupid,
+                            pofficeid
+                        ))
+                        union
+                        select
+                        pcurrentdate PERIOD,
+                        null TOTAL_LOAN_PORTFOLIO,
+                        NULL FROM_1_30_DPD,
+                        null FROM_31_60_DPD,
+                        null FROM_61_90_DPD,
+                        null MORE_TAHN_90_DPD,
+                        NULL OFFICE_NAME,
+                        'Average' GROUP_NAME,
+                        NULL GROUP_ID,
+                         null PERIOD_2,
+                        avg(decode(FROM_1_30_DPD_RATE, 0, null, FROM_1_30_DPD_RATE)) AVGOF_FROM_1_30_DPD_RATE ,
+                        avg(decode(FROM_31_60_DPD_RATE, 0, null, FROM_31_60_DPD_RATE)) AVGOF_FROM_31_60_DPD_RATE ,
+                        AVG(decode(FROM_61_90_DPD_RATE, 0, null, FROM_61_90_DPD_RATE)) AVGOF_FROM_61_90_DPD_RATE,
+                        AVG(decode(MORE_THAN_90_DPD_RATE, 0, null, MORE_THAN_90_DPD_RATE)) AVGOF_MORE_THAN_90_DPD_RATE,
+                        2 orderid
+                        from
+                        table(pd_calculation_report(
+                            pcurrentdate,
+                            pcollectivegroupid,
+                            pofficeid
+                        )) 
+
+
+                       
+                    ) order by orderid 
+
+            );
+
+    ELSE
+        SELECT
+            pd_calculation("PERIOD", "TOTAL_LOAN_PORTFOLIO", "FROM_1_30_DPD", "FROM_31_60_DPD", "FROM_61_90_DPD",
+                           "MORE_TAHN_90_DPD", "OFFICE_NAME", "GROUP_NAME",  "GROUP_ID", "PERIOD_2", "FROM_1_30_DPD_RATE",
+                           "FROM_31_60_DPD_RATE", "FROM_61_90_DPD_RATE", "MORE_THAN_90_DPD_RATE")
+        BULK COLLECT
+        INTO return_value
+        FROM
+            (
+                SELECT
+                    *
+                FROM
+                    (
+                        SELECT
+                            NULL                                            period,
+                            NULL                                            total_loan_portfolio,
+                            NULL                                            from_1_30_dpd,
+                            NULL                                            from_31_60_dpd,
+                            NULL                                            from_61_90_dpd,
+                            NULL                                            more_tahn_90_dpd,
+                            '***WARNING MESSAGE***'                         office_name,
+                            'PLEASE SELECT DATE BEFORE OR IN CURRENCT TILL' group_name,
+                            NULL                                            GROUP_ID,
+                            NULL                                            period_2,
+                            NULL                                            from_1_30_dpd_rate,
+                            NULL                                            from_31_60_dpd_rate,
+                            NULL                                            from_61_90_dpd_rate,
+                            NULL                                            more_than_90_dpd_RATE
+                        FROM
+                            dual
+                    )
+            );
+
+    END IF;
+
+    RETURN return_value;
 END;
 
